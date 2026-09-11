@@ -3,11 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>Labirent Oyunu</title>
+<title>Phase Runner</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+  }
   html, body {
     overscroll-behavior: none;
+    touch-action: none;
+    -webkit-overflow-scrolling: auto;
   }
   body {
     margin: 0;
@@ -26,14 +34,21 @@
   h1 {
     margin: 0;
     font-size: clamp(1.25rem, 5vw, 1.8rem);
-    letter-spacing: 1px;
-    text-shadow: 0 0 12px rgba(56,189,248,0.6);
+    letter-spacing: 0.02em;
+    font-weight: 700;
     text-align: center;
+    display: flex;
+    align-items: center;
+    gap: 9px;
   }
+  .logo-mark { flex-shrink: 0; filter: drop-shadow(0 0 6px rgba(56,189,248,0.5)); }
   #topRow {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 10px;
+    position: relative;
+    width: min(94vw, 480px);
   }
   #helpBtn {
     width: 34px;
@@ -51,6 +66,8 @@
     padding: 0;
     box-shadow: none;
     touch-action: manipulation;
+    position: absolute;
+    right: 0;
   }
   #helpBtn:active {
     transform: translateY(1px);
@@ -97,13 +114,19 @@
   }
   #restartBtn {
     margin-top: 2px;
-    padding: 10px 22px;
-    border-radius: 20px;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border-radius: 50%;
     background: #2563eb;
-    font-size: 1rem;
     box-shadow: 0 3px 0 #1d4ed8;
     touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
+  #restartBtn svg { transition: transform 0.4s ease; }
+  #restartBtn:active svg { transform: rotate(-90deg); }
 
   /* ---------- Yardım pop-up'ı ---------- */
   #helpOverlay {
@@ -152,14 +175,29 @@
 </head>
 <body>
   <div id="topRow">
-    <h1>🧩 Labirent Macerası</h1>
+    <h1>
+      <svg class="logo-mark" width="30" height="30" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10,10 H38" stroke="#f1f5f9" stroke-width="4" stroke-linecap="round"/>
+        <path d="M10,10 V38" stroke="#f1f5f9" stroke-width="4" stroke-linecap="round"/>
+        <path d="M10,38 H38" stroke="#f1f5f9" stroke-width="4" stroke-linecap="round"/>
+        <path d="M38,10 V19" stroke="#f1f5f9" stroke-width="4" stroke-linecap="round"/>
+        <path d="M38,29 V38" stroke="#f1f5f9" stroke-width="4" stroke-linecap="round"/>
+        <path d="M33,14 L46,24 L33,34" stroke="#38bdf8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Phase Runner
+    </h1>
     <button id="helpBtn" title="Nasıl oynanır?" aria-label="Nasıl oynanır?">?</button>
   </div>
   <div id="gameWrap">
     <canvas id="game"></canvas>
   </div>
   <div id="status"></div>
-  <button id="restartBtn">🔄 Yeni Labirent</button>
+  <button id="restartBtn" title="Yeni labirent" aria-label="Yeni labirent">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 12a8 8 0 1 1-2.34-5.66" stroke="#f1f5f9" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M20 4v5h-5" stroke="#f1f5f9" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
 
   <div id="helpOverlay">
     <div id="helpCard">
@@ -716,24 +754,21 @@
 
   document.getElementById('restartBtn').addEventListener('click', resetGame);
 
-  // Parmakla kaydırarak (swipe) hareket ettirme — labirent üzerinde dokunup sürükle
-  const gameWrap = document.getElementById('gameWrap');
-  let touchStartX = 0, touchStartY = 0, touchActive = false;
-  const SWIPE_THRESHOLD = 24;
+  // Sayfanın hiçbir yerinde dokunma kayması olmasın (pull-to-refresh, overscroll, bounce)
+  document.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
 
-  gameWrap.addEventListener('touchstart', (e) => {
+  // Parmakla kaydırarak (swipe) hareket ettirme — tüm sayfa üzerinde çalışır
+  let touchStartX = 0, touchStartY = 0, touchActive = false;
+  const SWIPE_THRESHOLD = 20;
+
+  document.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
     touchActive = true;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
   }, { passive: true });
 
-  gameWrap.addEventListener('touchmove', (e) => {
-    if (!touchActive) return;
-    e.preventDefault(); // sayfanın kaymasını engelle
-  }, { passive: false });
-
-  gameWrap.addEventListener('touchend', (e) => {
+  document.addEventListener('touchend', (e) => {
     if (!touchActive) return;
     touchActive = false;
     if (helpVisible) return;
