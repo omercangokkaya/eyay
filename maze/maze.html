@@ -122,12 +122,11 @@
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
   const DPR = Math.min(window.devicePixelRatio || 1, 3);
-  // Canvas'ın gerçek piksel arabelleğini DPR ile büyüt (net görüntü),
-  // CSS boyutunu mantıksal COLS*CELL px'de tutup ekranda otomatik küçülmesine izin ver.
+  // Canvas'ın gerçek piksel arabelleğini DPR ile büyüt (net görüntü).
+  // Ekrandaki gösterim boyutunu SABİT px olarak DEĞİL, CSS'teki
+  // "width: 100%; height: auto;" kuralına bırakıyoruz ki dar ekranlarda taşmasın.
   canvas.width = COLS * CELL * DPR;
   canvas.height = ROWS * CELL * DPR;
-  canvas.style.width = (COLS * CELL) + 'px';
-  canvas.style.height = (ROWS * CELL) + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
   const statusEl = document.getElementById('status');
