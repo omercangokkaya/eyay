@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>Labirent Oyunu</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at top, #1e293b, #0f172a);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #f1f5f9;
+    gap: 14px;
+    padding: 20px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    letter-spacing: 1px;
+    text-shadow: 0 0 12px rgba(56,189,248,0.6);
+  }
+  #info {
+    font-size: 0.95rem;
+    color: #94a3b8;
+    text-align: center;
+  }
+  #gameWrap {
+    position: relative;
+    border-radius: 14px;
+    padding: 10px;
+    background: #111827;
+    box-shadow: 0 0 0 2px #334155, 0 10px 30px rgba(0,0,0,0.6);
+  }
+  canvas {
+    display: block;
+    border-radius: 8px;
+    background: #0b1220;
+  }
+  #status {
+    font-size: 1.1rem;
+    font-weight: bold;
+    min-height: 1.4em;
+    color: #4ade80;
+    text-align: center;
+  }
+  #controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .row { display: flex; gap: 6px; }
+  button {
+    width: 52px;
+    height: 52px;
+    font-size: 1.4rem;
+    border: none;
+    border-radius: 10px;
+    background: #1e293b;
+    color: #f1f5f9;
+    box-shadow: 0 3px 0 #0f172a;
+    cursor: pointer;
+    user-select: none;
+  }
+  button:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #0f172a;
+  }
+  #restartBtn {
+    margin-top: 6px;
+    width: auto;
+    padding: 10px 22px;
+    height: auto;
+    border-radius: 20px;
+    background: #2563eb;
+    font-size: 1rem;
+    box-shadow: 0 3px 0 #1d4ed8;
+  }
+</style>
+</head>
+<body>
+  <h1>🧩 Labirent Macerası</h1>
+  <div id="info">Klavyedeki <b>ok tuşları</b> ile küçük insanı hareket ettir ve <b>senin kapına</b> (🟦🚪, sağ alt) ulaş!<br>⚠️ Her 2 adımda bir labirentte bir yol değişir!<br>🤖 Rakip bot kendi kapısına (🟥🚪, sol alt) ulaşmaya çalışıyor — başlangıçta ikinizin de kapıya olan adım mesafesi eşittir, kapısına ilk ulaşan kazanır!</div>
+  <div id="gameWrap">
+    <canvas id="game"></canvas>
+  </div>
+  <div id="status"></div>
+  <div id="controls">
+    <div class="row"><button id="up">↑</button></div>
+    <div class="row">
+      <button id="left">←</button>
+      <button id="down">↓</button>
+      <button id="right">→</button>
+    </div>
+    <button id="restartBtn">🔄 Yeni Labirent</button>
+  </div>
+
+<script>
+(function() {
+  const COLS = 15, ROWS = 15;
+  const CELL = 32;
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  canvas.width = COLS * CELL;
+  canvas.height = ROWS * CELL;
+
+  const statusEl = document.getElementById('status');
+
+  let grid, player, bot, playerGoal, botGoal, gameOver, winner, stepCount, flashMsgTimeout;
+
+  function makeGrid() {
+    const g = [];
+    for (let y = 0; y < ROWS; y++) {
+      const row = [];
+      for (let x = 0; x < COLS; x++) {
+        row.push({ x, y, walls: { top: true, right: true, bottom: true, left: true }, visited: false });
+      }
+      g.push(row);
+    }
+    return g;
+  }
+
+  function generateMaze() {
+    grid = makeGrid();
+    const stack = [];
+    let current = grid[0][0];
+    current.visited = true;
+    let visitedCount = 1;
+    const total = COLS * ROWS;
+
+    function neighbors(cell) {
+      const { x, y } = cell;
+      const list = [];
+      const dirs = [
+        { dx: 0, dy: -1, wall: 'top', opp: 'bottom' },
+        { dx: 1, dy: 0, wall: 'right', opp: 'left' },
+        { dx: 0, dy: 1, wall: 'bottom', opp: 'top' },
+        { dx: -1, dy: 0, wall: 'left', opp: 'right' }
+      ];
+      for (const d of dirs) {
+        const nx = x + d.dx, ny = y + d.dy;
+        if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && !grid[ny][nx].visited) {
+          list.push({ cell: grid[ny][nx], dir: d });
+        }
+      }
+      return list;
+    }
+
+    while (visitedCount < total) {
+      const options = neighbors(current);
+      if (options.length > 0) {
+        const choice = options[Math.floor(Math.random() * options.length)];
+        current.walls[choice.dir.wall] = false;
+        choice.cell.walls[choice.dir.opp] = false;
+        choice.cell.visited = true;
+        visitedCount++;
+        stack.push(current);
+        current = choice.cell;
+      } else if (stack.length > 0) {
+        current = stack.pop();
+      } else {
+        break;
+      }
+    }
+  }
+
+  // İki hücre arasındaki tüm iç duvarları listeler (kenarlar)
+  function getAllEdges() {
+    const edges = [];
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        if (x < COLS - 1) edges.push({ x1: x, y1: y, x2: x + 1, y2: y, wall: 'right', opp: 'left' });
+        if (y < ROWS - 1) edges.push({ x1: x, y1: y, x2: x, y2: y + 1, wall: 'bottom', opp: 'top' });
+      }
+    }
+    return edges;
+  }
+
+  // Verilen başlangıç noktasından hedefe giden en kısa yolu bulur (BFS).
+  // Bulursa hücre listesi (başlangıç dahil) döner, bulamazsa null döner.
+  function bfsPathToGoal(start, target) {
+    const visited = Array.from({ length: ROWS }, () => new Array(COLS).fill(false));
+    const prev = Array.from({ length: ROWS }, () => new Array(COLS).fill(null));
+    const queue = [{ x: start.x, y: start.y }];
+    visited[start.y][start.x] = true;
+
+    const moves = [
+      { dx: 0, dy: -1, wall: 'top' },
+      { dx: 1, dy: 0, wall: 'right' },
+      { dx: 0, dy: 1, wall: 'bottom' },
+      { dx: -1, dy: 0, wall: 'left' }
+    ];
+
+    while (queue.length > 0) {
+      const { x, y } = queue.shift();
+      if (x === target.x && y === target.y) {
+        // Yolu geriye doğru takip ederek listeye çevir
+        const path = [];
+        let cur = { x, y };
+        while (cur) {
+          path.push(cur);
+          cur = prev[cur.y][cur.x];
+        }
+        path.reverse();
+        return path;
+      }
+
+      const cell = grid[y][x];
+      for (const m of moves) {
+        if (cell.walls[m.wall]) continue;
+        const nx = x + m.dx, ny = y + m.dy;
+        if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && !visited[ny][nx]) {
+          visited[ny][nx] = true;
+          prev[ny][nx] = { x, y };
+          queue.push({ x: nx, y: ny });
+        }
+      }
+    }
+    return null;
+  }
+
+  function hasPathToGoal(from, target) {
+    return bfsPathToGoal(from, target) !== null;
+  }
+
+  // Başlangıçtan hedefe giden en kısa yoldaki adım sayısını döner (yol yoksa Infinity)
+  function pathLength(from, target) {
+    const path = bfsPathToGoal(from, target);
+    return path ? path.length - 1 : Infinity;
+  }
+
+  // Izgaranın (duvarlarıyla birlikte) derin kopyasını alır
+  function cloneGrid(g) {
+    return g.map(row => row.map(cell => ({
+      x: cell.x,
+      y: cell.y,
+      visited: cell.visited,
+      walls: { ...cell.walls }
+    })));
+  }
+
+  // Labirentte rastgele bir duvarı açıp/kapatarak yolu değiştirir,
+  // ama çıkışa giden yolun her zaman açık kalmasını garanti eder
+  function shiftMaze() {
+    const edges = getAllEdges().filter(e => {
+      const touchesPlayer = (e.x1 === player.x && e.y1 === player.y) || (e.x2 === player.x && e.y2 === player.y);
+      const touchesBot = (e.x1 === bot.x && e.y1 === bot.y) || (e.x2 === bot.x && e.y2 === bot.y);
+      const touchesPlayerGoal = (e.x1 === playerGoal.x && e.y1 === playerGoal.y) || (e.x2 === playerGoal.x && e.y2 === playerGoal.y);
+      const touchesBotGoal = (e.x1 === botGoal.x && e.y1 === botGoal.y) || (e.x2 === botGoal.x && e.y2 === botGoal.y);
+      return !touchesPlayer && !touchesBot && !touchesPlayerGoal && !touchesBotGoal;
+    });
+
+    // Kenarları rastgele sırala (Fisher-Yates)
+    for (let i = edges.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [edges[i], edges[j]] = [edges[j], edges[i]];
+    }
+
+    for (const edge of edges) {
+      const cellA = grid[edge.y1][edge.x1];
+      const cellB = grid[edge.y2][edge.x2];
+      const newState = !cellA.walls[edge.wall];
+
+      cellA.walls[edge.wall] = newState;
+      cellB.walls[edge.opp] = newState;
+
+      // Hem oyuncunun kendi kapısına hem de botun kendi kapısına giden yol hâlâ açık mı?
+      if (hasPathToGoal(player, playerGoal) && hasPathToGoal(bot, botGoal)) {
+        showFlashMessage('🔀 Labirent değişti!');
+        return;
+      }
+
+      // Yolu kapatıyorsa değişikliği geri al ve başka bir kenar dene
+      cellA.walls[edge.wall] = !newState;
+      cellB.walls[edge.opp] = !newState;
+    }
+    // Uygun bir değişiklik bulunamadıysa labirent bu turda değişmez
+  }
+
+  function showFlashMessage(text) {
+    statusEl.textContent = text;
+    statusEl.style.color = '#fbbf24';
+    clearTimeout(flashMsgTimeout);
+    flashMsgTimeout = setTimeout(() => {
+      if (!gameOver) statusEl.textContent = '';
+      statusEl.style.color = '#4ade80';
+    }, 900);
+  }
+
+  function resetGame() {
+    player = { x: 0, y: 0 };
+    bot = { x: COLS - 1, y: 0 };
+    playerGoal = { x: COLS - 1, y: ROWS - 1 };
+    botGoal = { x: 0, y: ROWS - 1 };
+
+    // Oyuncunun ve botun kendi kapılarına eşit adımda ulaşabileceği bir labirent ara.
+    // Tam eşitlik bulunamazsa en yakın (en küçük farklı) labirent kullanılır.
+    let bestGrid = null;
+    let bestDiff = Infinity;
+    const maxAttempts = 500;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      generateMaze();
+      const playerSteps = pathLength(player, playerGoal);
+      const botSteps = pathLength(bot, botGoal);
+      const diff = Math.abs(playerSteps - botSteps);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestGrid = cloneGrid(grid);
+        if (diff === 0) break;
+      }
+    }
+    grid = bestGrid;
+
+    gameOver = false;
+    winner = null;
+    stepCount = 0;
+    statusEl.textContent = '';
+    statusEl.style.color = '#4ade80';
+    draw();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const cell = grid[y][x];
+        const px = x * CELL, py = y * CELL;
+        ctx.beginPath();
+        if (cell.walls.top) { ctx.moveTo(px, py); ctx.lineTo(px + CELL, py); }
+        if (cell.walls.right) { ctx.moveTo(px + CELL, py); ctx.lineTo(px + CELL, py + CELL); }
+        if (cell.walls.bottom) { ctx.moveTo(px, py + CELL); ctx.lineTo(px + CELL, py + CELL); }
+        if (cell.walls.left) { ctx.moveTo(px, py); ctx.lineTo(px, py + CELL); }
+        ctx.stroke();
+      }
+    }
+
+    // Oyuncunun kapısı (mavi daire + kapı)
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.beginPath();
+    ctx.arc(playerGoal.x * CELL + CELL / 2, playerGoal.y * CELL + CELL / 2, CELL / 2 - 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(59,130,246,0.35)';
+    ctx.fill();
+    ctx.font = (CELL - 8) + 'px sans-serif';
+    ctx.fillText('🚪', playerGoal.x * CELL + CELL / 2, playerGoal.y * CELL + CELL / 2);
+
+    // Botun kapısı (kırmızı daire + kapı)
+    ctx.beginPath();
+    ctx.arc(botGoal.x * CELL + CELL / 2, botGoal.y * CELL + CELL / 2, CELL / 2 - 3, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(239,68,68,0.35)';
+    ctx.fill();
+    ctx.font = (CELL - 8) + 'px sans-serif';
+    ctx.fillText('🚪', botGoal.x * CELL + CELL / 2, botGoal.y * CELL + CELL / 2);
+
+    // Küçük insan (oyuncu)
+    ctx.font = (CELL - 4) + 'px sans-serif';
+    ctx.fillText('🧍', player.x * CELL + CELL / 2, player.y * CELL + CELL / 2);
+
+    // Rakip bot
+    ctx.font = (CELL - 6) + 'px sans-serif';
+    ctx.fillText('🤖', bot.x * CELL + CELL / 2, bot.y * CELL + CELL / 2);
+  }
+
+  function botMove() {
+    const path = bfsPathToGoal(bot, botGoal);
+    if (path && path.length > 1) {
+      bot.x = path[1].x;
+      bot.y = path[1].y;
+    }
+  }
+
+  function move(dir) {
+    if (gameOver) return;
+    const cell = grid[player.y][player.x];
+    let nx = player.x, ny = player.y;
+    if (dir === 'up' && !cell.walls.top) ny--;
+    else if (dir === 'down' && !cell.walls.bottom) ny++;
+    else if (dir === 'left' && !cell.walls.left) nx--;
+    else if (dir === 'right' && !cell.walls.right) nx++;
+    else return;
+
+    player.x = nx;
+    player.y = ny;
+    stepCount++;
+
+    if (player.x === playerGoal.x && player.y === playerGoal.y) {
+      gameOver = true;
+      winner = 'player';
+      draw();
+      statusEl.style.color = '#4ade80';
+      statusEl.textContent = '🎉 Tebrikler, kendi kapına sen ulaştın, kazandın!';
+      return;
+    }
+
+    if (stepCount % 2 === 0) {
+      shiftMaze();
+    }
+
+    // Sıra rakip botta
+    botMove();
+
+    if (bot.x === botGoal.x && bot.y === botGoal.y) {
+      gameOver = true;
+      winner = 'bot';
+      draw();
+      statusEl.style.color = '#f87171';
+      statusEl.textContent = '🤖 Bot kendi kapısına önce ulaştı, kaybettin!';
+      return;
+    }
+
+    draw();
+  }
+
+  document.addEventListener('keydown', (e) => {
+    const map = {
+      ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right'
+    };
+    if (map[e.key]) {
+      e.preventDefault();
+      move(map[e.key]);
+    }
+  });
+
+  document.getElementById('up').addEventListener('click', () => move('up'));
+  document.getElementById('down').addEventListener('click', () => move('down'));
+  document.getElementById('left').addEventListener('click', () => move('left'));
+  document.getElementById('right').addEventListener('click', () => move('right'));
+  document.getElementById('restartBtn').addEventListener('click', resetGame);
+
+  resetGame();
+})();
+</script>
+</body>
+</html>
