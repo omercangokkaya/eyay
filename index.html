@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atölye — küçük web deneyleri</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0d2131;
+    --ink-deep: #081722;
+    --line: #1f3f57;
+    --line-soft: #16324670;
+    --paper: #eef4f2;
+    --paper-dim: #a9c2ce;
+    --gold: #f2b705;
+    --gold-dim: #caa23a;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background-color: var(--ink);
+    background-image:
+      linear-gradient(var(--line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size: 34px 34px;
+    color: var(--paper);
+    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; }
+
+  .mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px 24px 0;
+  }
+
+  .mark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .mark svg { flex-shrink: 0; }
+
+  .topbar .mono {
+    font-size: 0.8rem;
+    color: var(--paper-dim);
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 96px 24px 64px;
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 56px;
+    align-items: center;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.3rem, 4.6vw, 3.4rem);
+    line-height: 1.08;
+    margin: 0 0 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .hero p {
+    font-size: 1.08rem;
+    line-height: 1.6;
+    color: var(--paper-dim);
+    max-width: 46ch;
+    margin: 0 0 30px;
+  }
+
+  .hero-note {
+    font-size: 0.85rem;
+    color: var(--paper-dim);
+    margin-top: 18px;
+  }
+
+  .hero-note .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  /* ---------- Spiral glyph ---------- */
+  .glyph-wrap {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .glyph-wrap svg { width: 100%; height: 100%; }
+
+  .spiral-path {
+    fill: none;
+    stroke: var(--gold);
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 900;
+    stroke-dashoffset: 900;
+    animation: draw 2.4s ease forwards 0.3s;
+  }
+
+  @keyframes draw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spiral-path { animation: none; stroke-dashoffset: 0; }
+  }
+
+  /* ---------- Section label ---------- */
+  .section-head {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-top: 1px solid var(--line);
+    padding-top: 26px;
+  }
+
+  .section-head h2 {
+    font-size: 1.15rem;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .section-head span {
+    font-size: 0.8rem;
+    color: var(--paper-dim);
+  }
+
+  /* ---------- Cards ---------- */
+  .cards {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 26px 24px 100px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+
+  .card {
+    position: relative;
+    border-radius: 4px;
+    padding: 22px;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card--featured {
+    grid-column: span 2;
+    background: linear-gradient(155deg, #123449, #0d2434);
+    border: 1px solid var(--line);
+    justify-content: flex-end;
+    overflow: hidden;
+  }
+
+  .card--featured .card-art {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 108px;
+    height: 108px;
+    opacity: 0.9;
+  }
+
+  .card-eyebrow {
+    font-size: 0.78rem;
+    color: var(--gold-dim);
+    margin-bottom: 8px;
+  }
+
+  .card--featured h3 {
+    font-size: 1.5rem;
+    margin: 0 0 8px;
+    font-weight: 700;
+  }
+
+  .card--featured p {
+    font-size: 0.95rem;
+    color: var(--paper-dim);
+    line-height: 1.55;
+    margin: 0 0 20px;
+    max-width: 40ch;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    background: var(--gold);
+    color: var(--ink-deep);
+    font-weight: 600;
+    font-size: 0.92rem;
+    padding: 11px 20px;
+    border-radius: 3px;
+    text-decoration: none;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .btn:hover {
+    background: #ffcb2b;
+    transform: translateY(-1px);
+  }
+
+  .card--slot {
+    border: 1px dashed var(--line);
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    color: var(--paper-dim);
+  }
+
+  .card--slot .slot-mark {
+    font-size: 1.3rem;
+    color: var(--line);
+  }
+
+  .card--slot .slot-label {
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; padding-top: 64px; }
+    .glyph-wrap { max-width: 220px; margin: 0 auto; }
+    .cards { grid-template-columns: 1fr; }
+    .card--featured { grid-column: span 1; }
+  }
+
+  /* ---------- Footer ---------- */
+  footer {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 24px 48px;
+    border-top: 1px solid var(--line);
+    padding-top: 22px;
+    font-size: 0.8rem;
+    color: var(--paper-dim);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="mark">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+        <rect x="1" y="1" width="24" height="24" rx="3" stroke="#f2b705" stroke-width="1.6"/>
+        <path d="M8 8H18V18H12V12H15" stroke="#f2b705" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Atölye
+    </div>
+    <div class="mono">omercangokkaya</div>
+  </div>
+
+  <section class="hero">
+    <div>
+      <h1>Küçük fikirler, çalışır hâlde.</h1>
+      <p>Burada arada bir ortaya çıkan minik web denemeleri birikiyor — her biri tek başına açılıp oynanabilen, bağımsız bir sayfa. İlk durak bir labirent yarışı.</p>
+      <a class="btn" href="maze/maze.html">Labirenti aç</a>
+      <div class="hero-note"><span class="dot"></span>Yeni deneyler eklendikçe burada listelenecek.</div>
+    </div>
+
+    <div class="glyph-wrap">
+      <svg viewBox="0 0 200 200" fill="none">
+        <circle cx="100" cy="100" r="96" stroke="#1f3f57" stroke-width="1"/>
+        <path class="spiral-path" d="M20,20 H180 V180 H60 V60 H140 V140 H100"/>
+        <text x="20" y="14" text-anchor="middle" font-size="20">🧍</text>
+        <text x="100" y="146" text-anchor="middle" font-size="18">🚪</text>
+      </svg>
+    </div>
+  </section>
+
+  <div class="section-head">
+    <h2>Deneyler</h2>
+    <span class="mono">01 / şimdilik</span>
+  </div>
+
+  <div class="cards">
+    <div class="card card--featured">
+      <svg class="card-art" viewBox="0 0 120 120" fill="none">
+        <path d="M14,14 H106 V106 H40 V40 H80 V80 H60" stroke="#f2b705" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+      </svg>
+      <div class="card-eyebrow">Labirent</div>
+      <h3>Labirent Macerası</h3>
+      <p>Duvarları her birkaç adımda bir değişen bir labirentte, kendi kapına ilk sen mi ulaşırsın yoksa rakip bot mu?</p>
+      <a class="btn" href="maze/maze.html">Oyna</a>
+    </div>
+
+    <div class="card card--slot">
+      <div class="slot-mark">＋</div>
+      <div class="slot-label mono">yakında</div>
+    </div>
+
+    <div class="card card--slot">
+      <div class="slot-mark">＋</div>
+      <div class="slot-label mono">yakında</div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Atölye — kişisel deneyler.</span>
+    <span class="mono">GitHub / maze</span>
+  </footer>
+
+</body>
+</html>
