@@ -434,8 +434,12 @@
 
   // Labirentte rastgele bir duvarı açıp/kapatarak yolu değiştirir,
   // ama çıkışa giden yolun her zaman açık kalmasını garanti eder
-  function shiftMaze() {
+  // Tek bir duvarı rastgele açar/kapatır, oyuncunun ve botun kendi kapısına
+  // giden yolun açık kalmasını garanti eder. Başarılıysa değişen kenarı döner, yoksa null.
+  function shiftOneWall(excludeKeys) {
     const edges = getAllEdges().filter(e => {
+      const key = `${e.x1},${e.y1},${e.wall}`;
+      if (excludeKeys.has(key)) return false;
       const touchesPlayer = (e.x1 === player.x && e.y1 === player.y) || (e.x2 === player.x && e.y2 === player.y);
       const touchesBot = (e.x1 === bot.x && e.y1 === bot.y) || (e.x2 === bot.x && e.y2 === bot.y);
       const touchesPlayerGoal = (e.x1 === playerGoal.x && e.y1 === playerGoal.y) || (e.x2 === playerGoal.x && e.y2 === playerGoal.y);
@@ -460,15 +464,32 @@
 
       // Hem oyuncunun kendi kapısına hem de botun kendi kapısına giden yol hâlâ açık mı?
       if (hasPathToGoal(player, playerGoal) && hasPathToGoal(bot, botGoal)) {
-        showFlashMessage('🔀 Labirent değişti!');
-        return;
+        return edge;
       }
 
       // Yolu kapatıyorsa değişikliği geri al ve başka bir kenar dene
       cellA.walls[edge.wall] = !newState;
       cellB.walls[edge.opp] = !newState;
     }
-    // Uygun bir değişiklik bulunamadıysa labirent bu turda değişmez
+    return null; // Uygun bir değişiklik bulunamadı
+  }
+
+  // Labirentte AYNI ANDA 3 FARKLI yolda değişiklik yapar (aynı duvar bu turda
+  // iki kez seçilip geri alınmasın diye her başarılı kenar dışlama setine eklenir)
+  const WALLS_PER_SHIFT = 3;
+  function shiftMaze() {
+    const usedKeys = new Set();
+    let changed = 0;
+    for (let i = 0; i < WALLS_PER_SHIFT; i++) {
+      const edge = shiftOneWall(usedKeys);
+      if (edge) {
+        usedKeys.add(`${edge.x1},${edge.y1},${edge.wall}`);
+        changed++;
+      }
+    }
+    if (changed > 0) {
+      showFlashMessage(changed === 1 ? '🔀 Labirentte bir yol değişti!' : `🔀 Labirentte ${changed} yol değişti!`);
+    }
   }
 
   function showFlashMessage(text) {
@@ -503,11 +524,11 @@
     playerGoal = { x: COLS - 1, y: ROWS - 1 };
     botGoal = { x: 0, y: ROWS - 1 };
 
-    // Oyuncunun ve botun kendi kapılarına eşit adımda ulaşabileceği bir labirent ara.
-    // Tam eşitlik bulunamazsa en yakın (en küçük farklı) labirent kullanılır.
+    // 1. adım: oyuncunun ve botun kendi kapılarına eşit adımda ulaşabileceği
+    // bir labirent bulana kadar (ya da deneme hakkı bitene kadar) yeniden üret.
     let bestGrid = null;
     let bestDiff = Infinity;
-    const maxAttempts = 500;
+    const maxAttempts = 400;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       generateMaze();
       const playerSteps = pathLength(player, playerGoal);
@@ -520,6 +541,45 @@
       }
     }
     grid = bestGrid;
+
+    // 2. adım: tam eşitlik hâlâ bulunamadıysa (çok nadir), en iyi labirent
+    // üzerinde duvarları tek tek deneyerek farkı sıfıra indirmeye çalış.
+    if (bestDiff !== 0) {
+      let diff = bestDiff;
+      let equalizeAttempts = 0;
+      while (diff !== 0 && equalizeAttempts < 400) {
+        equalizeAttempts++;
+        const edges = getAllEdges().filter(e => {
+          const touchesPlayer = (e.x1 === player.x && e.y1 === player.y) || (e.x2 === player.x && e.y2 === player.y);
+          const touchesBot = (e.x1 === bot.x && e.y1 === bot.y) || (e.x2 === bot.x && e.y2 === bot.y);
+          const touchesPlayerGoal = (e.x1 === playerGoal.x && e.y1 === playerGoal.y) || (e.x2 === playerGoal.x && e.y2 === playerGoal.y);
+          const touchesBotGoal = (e.x1 === botGoal.x && e.y1 === botGoal.y) || (e.x2 === botGoal.x && e.y2 === botGoal.y);
+          return !touchesPlayer && !touchesBot && !touchesPlayerGoal && !touchesBotGoal;
+        });
+        const edge = edges[Math.floor(Math.random() * edges.length)];
+        if (!edge) break;
+
+        const cellA = grid[edge.y1][edge.x1];
+        const cellB = grid[edge.y2][edge.x2];
+        const newState = !cellA.walls[edge.wall];
+        cellA.walls[edge.wall] = newState;
+        cellB.walls[edge.opp] = newState;
+
+        const newPlayerSteps = pathLength(player, playerGoal);
+        const newBotSteps = pathLength(bot, botGoal);
+        const newDiff = (newPlayerSteps === Infinity || newBotSteps === Infinity)
+          ? Infinity
+          : Math.abs(newPlayerSteps - newBotSteps);
+
+        // Sadece farkı küçültüyorsa (ve her iki yol da hâlâ mevcutsa) değişikliği koru
+        if (newDiff < diff) {
+          diff = newDiff;
+        } else {
+          cellA.walls[edge.wall] = !newState;
+          cellB.walls[edge.opp] = !newState;
+        }
+      }
+    }
 
     playerHasPowerUp = false;
     botHasPowerUp = false;
