@@ -2,12 +2,17 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Labirent Oyunu</title>
 <style>
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    overscroll-behavior: none;
+  }
   body {
     margin: 0;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -15,34 +20,42 @@
     background: radial-gradient(circle at top, #1e293b, #0f172a);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: #f1f5f9;
-    gap: 14px;
-    padding: 20px;
+    gap: clamp(8px, 2.5vw, 14px);
+    padding: clamp(10px, 4vw, 20px);
   }
   h1 {
     margin: 0;
-    font-size: 1.8rem;
+    font-size: clamp(1.25rem, 5vw, 1.8rem);
     letter-spacing: 1px;
     text-shadow: 0 0 12px rgba(56,189,248,0.6);
+    text-align: center;
   }
   #info {
-    font-size: 0.95rem;
+    font-size: clamp(0.78rem, 3vw, 0.95rem);
     color: #94a3b8;
     text-align: center;
+    max-width: 480px;
+    line-height: 1.5;
   }
   #gameWrap {
     position: relative;
     border-radius: 14px;
-    padding: 10px;
+    padding: clamp(6px, 2vw, 10px);
     background: #111827;
     box-shadow: 0 0 0 2px #334155, 0 10px 30px rgba(0,0,0,0.6);
+    width: min(94vw, 480px);
+    touch-action: none;
   }
   canvas {
     display: block;
     border-radius: 8px;
     background: #0b1220;
+    width: 100%;
+    height: auto;
+    touch-action: none;
   }
   #status {
-    font-size: 1.1rem;
+    font-size: clamp(0.95rem, 3.5vw, 1.1rem);
     font-weight: bold;
     min-height: 1.4em;
     color: #4ade80;
@@ -56,8 +69,8 @@
   }
   .row { display: flex; gap: 6px; }
   button {
-    width: 52px;
-    height: 52px;
+    width: clamp(48px, 14vw, 56px);
+    height: clamp(48px, 14vw, 56px);
     font-size: 1.4rem;
     border: none;
     border-radius: 10px;
@@ -66,6 +79,7 @@
     box-shadow: 0 3px 0 #0f172a;
     cursor: pointer;
     user-select: none;
+    touch-action: manipulation;
   }
   button:active {
     transform: translateY(2px);
@@ -80,12 +94,13 @@
     background: #2563eb;
     font-size: 1rem;
     box-shadow: 0 3px 0 #1d4ed8;
+    touch-action: manipulation;
   }
 </style>
 </head>
 <body>
   <h1>🧩 Labirent Macerası</h1>
-  <div id="info">Klavyedeki <b>ok tuşları</b> ile küçük insanı hareket ettir ve <b>senin kapına</b> (🟦🚪, sağ alt) ulaş!<br>⚠️ Her 2 adımda bir labirentte bir yol değişir!<br>🤖 Rakip bot kendi kapısına (🟥🚪, sol alt) ulaşmaya çalışıyor — başlangıçta ikinizin de kapıya olan adım mesafesi eşittir, kapısına ilk ulaşan kazanır!</div>
+  <div id="info">Klavye <b>ok tuşları</b>, alttaki butonlar veya labirentin üzerinde <b>parmağınla kaydırarak</b> küçük insanı hareket ettir ve <b>senin kapına</b> (🟦🚪, sağ alt) ulaş!<br>⚠️ Her 2 adımda bir labirentte bir yol değişir!<br>🤖 Rakip bot kendi kapısına (🟥🚪, sol alt) ulaşmaya çalışıyor — başlangıçta ikinizin de kapıya olan adım mesafesi eşittir, kapısına ilk ulaşan kazanır!</div>
   <div id="gameWrap">
     <canvas id="game"></canvas>
   </div>
@@ -106,8 +121,14 @@
   const CELL = 32;
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
-  canvas.width = COLS * CELL;
-  canvas.height = ROWS * CELL;
+  const DPR = Math.min(window.devicePixelRatio || 1, 3);
+  // Canvas'ın gerçek piksel arabelleğini DPR ile büyüt (net görüntü),
+  // CSS boyutunu mantıksal COLS*CELL px'de tutup ekranda otomatik küçülmesine izin ver.
+  canvas.width = COLS * CELL * DPR;
+  canvas.height = ROWS * CELL * DPR;
+  canvas.style.width = (COLS * CELL) + 'px';
+  canvas.style.height = (ROWS * CELL) + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
   const statusEl = document.getElementById('status');
 
@@ -436,6 +457,39 @@
   document.getElementById('left').addEventListener('click', () => move('left'));
   document.getElementById('right').addEventListener('click', () => move('right'));
   document.getElementById('restartBtn').addEventListener('click', resetGame);
+
+  // Parmakla kaydırarak (swipe) hareket ettirme — labirent üzerinde dokunup sürükle
+  const gameWrap = document.getElementById('gameWrap');
+  let touchStartX = 0, touchStartY = 0, touchActive = false;
+  const SWIPE_THRESHOLD = 24;
+
+  gameWrap.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    touchActive = true;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  gameWrap.addEventListener('touchmove', (e) => {
+    if (!touchActive) return;
+    e.preventDefault(); // sayfanın kaymasını engelle
+  }, { passive: false });
+
+  gameWrap.addEventListener('touchend', (e) => {
+    if (!touchActive) return;
+    touchActive = false;
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - touchStartX;
+    const dy = touch.clientY - touchStartY;
+
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_THRESHOLD) return;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      move(dx > 0 ? 'right' : 'left');
+    } else {
+      move(dy > 0 ? 'down' : 'up');
+    }
+  });
 
   resetGame();
 })();
