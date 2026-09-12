@@ -87,6 +87,32 @@
     margin: 0;
   }
 
+  .card--game {
+    background: linear-gradient(155deg, #123449, #0d2434);
+    border: 1px solid var(--line);
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    transition: transform 0.18s ease, border-color 0.18s ease;
+  }
+
+  .card--game:hover {
+    transform: translateY(-2px);
+    border-color: var(--gold-dim);
+  }
+
+  .card--game .logo-mark {
+    filter: drop-shadow(0 0 12px rgba(242,183,5,0.3));
+  }
+
+  .card--game h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    margin: 0;
+  }
+
   .card--slot {
     border: 1px dashed var(--line);
     justify-content: center;
@@ -126,10 +152,17 @@
       <h1>Phase Runner</h1>
     </a>
 
-    <div class="card card--slot">
-      <div class="slot-mark">＋</div>
-      <div class="slot-label mono">yakında</div>
-    </div>
+    <a class="card card--game" href="doner/doner.html">
+      <svg class="logo-mark" width="44" height="44" viewBox="0 0 48 48" fill="none">
+        <path d="M24,8 V44" stroke="#eef4f2" stroke-width="3" stroke-linecap="round"/>
+        <path d="M24,8 L35,40 H13 Z" stroke="#eef4f2" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M19,18 H29" stroke="#eef4f2" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M16.5,26 H31.5" stroke="#eef4f2" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M14.5,34 H33.5" stroke="#eef4f2" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M30,29 L45,18" stroke="#f2b705" stroke-width="4.5" stroke-linecap="round"/>
+      </svg>
+      <h2>Döner Kesme</h2>
+    </a>
 
     <div class="card card--slot">
       <div class="slot-mark">＋</div>
